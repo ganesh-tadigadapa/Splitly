@@ -16,6 +16,11 @@ if (!JWT_SECRET) {
   );
 }
 
+const isNonEmptyString = (value) =>
+  typeof value === "string" && value.trim().length > 0;
+
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
 // Shape returned to the client: never include the password.
 const publicUser = (user) => ({
   _id: user._id,
@@ -25,11 +30,36 @@ const publicUser = (user) => ({
 
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body || {};
+
+    if (![name, email, password].every(isNonEmptyString)) {
+      return res
+        .status(400)
+        .json({ msg: "Name, email and password are required" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+
+    if (await User.exists({ email: normalizedEmail })) {
+      return res
+        .status(409)
+        .json({ msg: "An account with this email already exists" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    await User.create({ name, email, password: hashedPassword });
+    await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
     res.json({ msg: "Registered" });
   } catch (err) {
+    // Unique index violation: two registrations raced for the same email.
+    if (err && err.code === 11000) {
+      return res
+        .status(409)
+        .json({ msg: "An account with this email already exists" });
+    }
     console.error("Register Error:", err.message || err);
     res.status(500).json({ msg: "Registration failed" });
   }
@@ -37,13 +67,18 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email, password } = req.body || {};
+
+    if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
+      return res.status(400).json({ msg: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email: normalizeEmail(email) });
 
     const passwordMatches = user && (await bcrypt.compare(password, user.password));
 
     if (!passwordMatches) {
-      return res.status(400).json({ msg: "Invalid" });
+      return res.status(400).json({ msg: "Invalid email or password" });
     }
 
     const safeUser = publicUser(user);
