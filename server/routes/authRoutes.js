@@ -46,6 +46,14 @@ router.post("/register", async (req, res) => {
         .json({ msg: "An account with this email already exists" });
     }
 
+    // Groups and expenses are looked up by member name, so two accounts with
+    // the same name would see each other's groups.
+    if (await User.exists({ name: name.trim() })) {
+      return res
+        .status(409)
+        .json({ msg: "That name is already taken; please use a different one" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await User.create({
       name: name.trim(),
