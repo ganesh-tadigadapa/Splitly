@@ -144,8 +144,6 @@ Splitly/
     ├── server.js           # App setup, MongoDB connection, route mounting
     ├── routes/             # auth, groups, expenses, ocr, ai, chat
     ├── models/             # Expense, Group, User, Settlement (Mongoose)
-    ├── config/
-    ├── utils/
     ├── package.json
     └── vercel.json
 ```
