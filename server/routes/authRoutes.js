@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 
 // Shape returned to the client: never include the password.
@@ -13,7 +14,8 @@ const publicUser = (user) => ({
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    await User.create({ name, email, password });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await User.create({ name, email, password: hashedPassword });
     res.json({ msg: "Registered" });
   } catch (err) {
     console.error("Register Error:", err.message || err);
@@ -26,7 +28,9 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user || user.password !== password) {
+    const passwordMatches = user && (await bcrypt.compare(password, user.password));
+
+    if (!passwordMatches) {
       return res.status(400).json({ msg: "Invalid" });
     }
 
