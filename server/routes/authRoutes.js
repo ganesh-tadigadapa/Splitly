@@ -2,7 +2,19 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const User = require("../models/user");
+
+// Sign tokens with JWT_SECRET. If it is not set, fall back to a random
+// per-process secret so the server still starts; tokens then stop being
+// valid whenever the process restarts.
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  JWT_SECRET = crypto.randomBytes(32).toString("hex");
+  console.warn(
+    "JWT_SECRET is not set. Using a random per-process secret; set JWT_SECRET in server/.env for stable tokens."
+  );
+}
 
 // Shape returned to the client: never include the password.
 const publicUser = (user) => ({
@@ -35,7 +47,7 @@ router.post("/login", async (req, res) => {
     }
 
     const safeUser = publicUser(user);
-    const token = jwt.sign(safeUser, "secret");
+    const token = jwt.sign(safeUser, JWT_SECRET);
 
     res.json({ token, user: safeUser });
   } catch (err) {
