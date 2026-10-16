@@ -119,7 +119,7 @@ cd Ai_splitsystem
 # 2. Backend
 cd server
 npm install
-npm start          # listens on :5000
+npm start          # listens on :5001
 
 # 3. Frontend (new terminal)
 cd ../client
