@@ -135,7 +135,7 @@ Splitly/
 │   ├── public/
 │   ├── src/
 │   │   ├── App.js          # Dashboard, group view, balances, settle up
-│   │   ├── components/     # Login, Chatbot, CreateGroupModal, AddExpenseModal, ...
+│   │   ├── components/     # Login, Chatbot, CreateGroupModal, AddExpenseModal
 │   │   ├── index.js
 │   │   └── index.css
 │   ├── package.json
