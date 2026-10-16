@@ -4,7 +4,7 @@ import axios from "axios";
 function Chatbot({ groupId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { sender: "ai", text: "Hi! I'm SmartSplit AI. Ask me about your group's expenses!" }
+    { sender: "ai", text: "Hi! I'm Splitly AI. Ask me about your group's expenses!" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ function Chatbot({ groupId }) {
       {isOpen && (
         <div className="chatbot-window">
           <div className="chatbot-header">
-            <span>✨ SmartSplit AI</span>
+            <span>✨ Splitly AI</span>
             <button
               style={{ width: 'auto', padding: '4px 8px', margin: 0, background: 'transparent', boxShadow: 'none', color: '#94a3b8' }}
               onClick={() => setIsOpen(false)}

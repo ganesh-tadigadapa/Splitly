@@ -25,7 +25,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const systemPrompt = `You are SmartSplit AI, a helpful and friendly financial assistant for a bill-splitting app used in India.
+    const systemPrompt = `You are Splitly AI, a helpful and friendly financial assistant for a bill-splitting app used in India.
 All amounts are in Indian Rupees (₹ / INR). NEVER use dollar signs ($) or any other currency symbol — always use ₹.
 Your job is to answer questions about the group's expenses based on the context provided.
 Be concise, polite, and helpful.
