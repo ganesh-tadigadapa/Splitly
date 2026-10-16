@@ -1,4 +1,4 @@
-# AI Features — SmartSplit
+# AI Features — Splitly
 
 This app is a group bill-splitting tool with four AI-powered features built on top of **Google Gemini 2.5 Flash** (text + vision). Below is what each feature does, how it works, and where to find the code.
 
@@ -70,7 +70,7 @@ This app is a group bill-splitting tool with four AI-powered features built on t
 
 ---
 
-## 4. SmartSplit Chatbot (RAG-style Context Injection)
+## 4. Splitly Chatbot (RAG-style Context Injection)
 
 **What it does:** A floating chat widget that answers questions about the current group's expenses ("Who spent the most?", "What's the total?", "How much do I owe Raj?").
 
