@@ -49,7 +49,7 @@ flowchart LR
 ```
 
 1. The React app talks to the Express server over a REST API.
-2. Groups and expenses are saved in MongoDB with Mongoose.
+2. Accounts, groups and expenses are saved in MongoDB with Mongoose. Passwords are stored as bcrypt hashes.
 3. Balances and settle-up payments are calculated on the server from the saved expenses.
 4. AI features send a prompt (and, for receipts, the image) to Gemini. The server checks the reply against a fixed list of categories and group members before sending it back.
 
@@ -62,7 +62,7 @@ flowchart LR
 | Database | MongoDB with Mongoose |
 | AI | Google Gemini 2.5 Flash via `@google/genai` (text + vision) |
 | Optional chat fallback | OpenAI SDK – `gpt-3.5-turbo`, or Groq `llama-3.3-70b-versatile` when the key starts with `gsk_` |
-| Auth | JSON Web Tokens (`jsonwebtoken`) |
+| Auth | JSON Web Tokens (`jsonwebtoken`), bcrypt password hashing (`bcryptjs`) |
 | Hosting config | `vercel.json` in both `client/` and `server/` |
 
 ## 🚀 Run locally
@@ -76,14 +76,15 @@ cd server
 npm install
 ```
 
-Create `server/.env`:
+Copy `server/.env.example` to `server/.env` and fill in your values:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `MONGO_URI` | Recommended | MongoDB connection string. If not set, the server uses a local MongoDB at `127.0.0.1:27017`. |
-| `PORT` | Recommended | Port the server listens on. Defaults to `5000`, but the client expects `5001` by default (see note below). |
+| `PORT` | Optional | Port the server listens on. Defaults to `5001`, which is what the client expects. |
 | `GEMINI_API_KEY` | For AI | Turns on receipt scan, plain-English entry, auto-categorize and the chatbot. |
 | `OPENAI_API_KEY` | Optional | Used by the chatbot only when `GEMINI_API_KEY` is not set. A key starting with `gsk_` is sent to Groq instead of OpenAI. |
+| `JWT_SECRET` | Recommended | Secret used to sign login tokens. If not set, the server picks a random secret at startup and logs a warning, so tokens stop working after a restart. |
 
 ```bash
 npm start
@@ -99,13 +100,13 @@ npm install
 npm start
 ```
 
-The app opens at `http://localhost:3000`.
+The app opens at `http://localhost:3000`. To point it at a different server, copy `client/.env.example` to `client/.env`.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `REACT_APP_API_URL` | Optional | Base URL of the server. Defaults to `http://localhost:5001`. |
 
-> **Port note:** the server defaults to port `5000` and the client defaults to `5001`. Either set `PORT=5001` in `server/.env`, or set `REACT_APP_API_URL=http://localhost:5000` in `client/.env`.
+> **Port note:** the server and client both default to port `5001`. If you change `PORT` in `server/.env`, set `REACT_APP_API_URL` in `client/.env` to match.
 
 ## 🔌 API routes
 
@@ -113,7 +114,7 @@ All routes are served under `/api`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/api/auth/register` | Create an account |
+| `POST` | `/api/auth/register` | Create an account (name, email, password). Returns `400` if a field is missing and `409` if the email is taken |
 | `POST` | `/api/auth/login` | Log in and get a token |
 | `POST` | `/api/groups/create` | Create a group (name, emoji, members) |
 | `GET` | `/api/groups/user/:username` | List a user's groups with totals and their net balance |
@@ -150,7 +151,7 @@ Splitly/
 
 ## 📝 Notes
 
-- Accounts are kept in server memory for now, so they are cleared when the server restarts. Groups and expenses are saved in MongoDB.
+- Accounts are saved in MongoDB with bcrypt-hashed passwords. Login returns a token, but the other API routes do not check it yet.
 - AI answers can be wrong, so the server checks categories and member names against fixed lists before using them.
 
 ---
