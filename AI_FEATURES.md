@@ -112,9 +112,9 @@ This app is a group bill-splitting tool with four AI-powered features built on t
 ## Setup
 
 ```bash
-# 1. Unzip
-unzip Ai_splitsystem.zip
-cd Ai_splitsystem
+# 1. Clone
+git clone https://github.com/ganesh-tadigadapa/Splitly.git
+cd Splitly
 
 # 2. Backend
 cd server
