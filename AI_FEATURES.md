@@ -127,7 +127,7 @@ npm install
 npm start          # listens on :3000
 ```
 
-The `.env` (in `server/`) ships with a Gemini API key and a MongoDB Atlas connection string.
+No secrets ship with the project. Before starting the server, copy `server/.env.example` to `server/.env` and fill in your own `MONGO_URI`, `GEMINI_API_KEY` and `JWT_SECRET` (see `client/.env.example` for the client's `REACT_APP_API_URL`). Without a Gemini key the AI features fall back to offline replies.
 
 ---
 
