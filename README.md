@@ -1,163 +1,90 @@
-<div align="center">
+# Splitly
 
-# 💸 Splitly
+Live: https://ai-split-66al.vercel.app/
 
-**Split smart, settle easy.**
+Splitting costs on a trip or in a shared flat usually ends with someone scrolling back through a group chat trying to work out who paid for what. And most splitting apps make you type every expense into a form, which is the part nobody wants to do.
 
-A group expense splitter with AI built in: scan a receipt, type an expense in plain English, or ask a chatbot who owes what.
+So I built Splitly. You make a group, add expenses, and it works out everyone's balance and a short list of "who pays whom" payments to settle up. To cut down on typing, it uses Google Gemini to read receipt photos and turn sentences like *"I paid 600 for pizza for me, Raj and Anu"* into an expense. Amounts are in rupees.
 
-[![Live demo](https://img.shields.io/badge/🌐_Live_demo-ai--split--66al.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ai-split-66al.vercel.app/)
+## What it does
 
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Node.js](https://img.shields.io/badge/Node.js-Express_5-339933?logo=nodedotjs&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/AI-Gemini_2.5_Flash-4285F4?logo=googlegemini&logoColor=white)
-![Axios](https://img.shields.io/badge/Axios-HTTP-5A29E4?logo=axios&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-config_included-000000?logo=vercel&logoColor=white)
+- Groups with a name, an emoji and a list of members
+- Add an expense with who paid and who shares it (split equally)
+- Balances per member, and a settle-up list. Clicking a payment marks it as settled
+- A dashboard with the total tracked, number of people and groups, and "you owe" / "you're owed" on each group card
+- **Receipt scan**: upload a photo and it fills in the title, total, category and up to 10 line items
+- **Plain-English entry**: type what happened and it fills in the title, amount, category, payer and split. Names are only matched to people actually in the group
+- **Auto-category** while you type a title (Food, Lodging, Transport, Activities, Shopping or General). It won't override a category you picked yourself
+- **Group chatbot**: ask things like "what's our total?" and it answers using the group's expenses from the database. If there's no AI key or the call fails, it can still answer simple total questions on its own
 
-</div>
+## How it's put together
 
----
-
-## 🤔 What is Splitly
-
-Splitly helps friends, roommates and travel groups track shared costs. You create a group, add expenses, and Splitly works out each person's balance and the payments needed to settle up. All amounts are shown in Indian Rupees (₹).
-
-On top of that, Splitly uses Google Gemini to save typing: it can read a receipt photo, understand a sentence like *"I paid 600 for pizza for me, Raj and Anu"*, pick a category for you, and answer questions about your group's spending.
-
-## ✨ Features
-
-- 👥 **Groups** – create a group with a name, an emoji and a list of members.
-- 🧾 **Add expenses** – record who paid and who shares the cost. The amount is split equally between the people you pick.
-- ⚖️ **Balances** – see how much each member is up or down in a group.
-- 🤝 **Settle up** – get a short list of "who pays whom" to clear all debts, and mark a payment as settled with one click.
-- 📊 **Dashboard** – total amount tracked, number of people and number of groups, plus "you owe" / "you're owed" on each group card.
-- 📷 **AI receipt scan** – upload a receipt photo and the form fills in the title, total, category and up to 10 line items.
-- 💬 **Plain-English entry** – type what happened and Splitly fills in the title, amount, category, payer and split. Names are matched only to real group members.
-- 🏷️ **Auto-categorize** – as you type a title, the category is picked for you (Food, Lodging, Transport, Activities, Shopping or General). It never overrides a category you chose yourself.
-- 🤖 **Group chatbot** – ask things like "What's our total?" The bot reads the group's expenses from the database before it answers.
-- 🛟 **Offline fallback** – if no AI key is set or the AI call fails, the chatbot still answers simple "total" questions on its own.
-
-## ⚙️ How it works
-
-```mermaid
-flowchart LR
-    A[React client] -->|REST API| B[Express server]
-    B --> C[(MongoDB)]
-    B -->|receipt, parse, categorize, chat| D[Google Gemini 2.5 Flash]
-    B -.->|chat only, optional| E[OpenAI or Groq]
+```
+client/   React 19 (Create React App) + Axios
+  src/App.js          dashboard, group view, balances, settle up
+  src/components/     Login, Chatbot, CreateGroupModal, AddExpenseModal
+server/   Node + Express 5 + MongoDB (Mongoose)
+  routes/             auth, groups, expenses, ocr, ai, chat
+  models/             Expense, Group, User, Settlement
 ```
 
-1. The React app talks to the Express server over a REST API.
-2. Accounts, groups and expenses are saved in MongoDB with Mongoose. Passwords are stored as bcrypt hashes.
-3. Balances and settle-up payments are calculated on the server from the saved expenses.
-4. AI features send a prompt (and, for receipts, the image) to Gemini. The server checks the reply against a fixed list of categories and group members before sending it back.
+Balances and settlements are calculated on the server from the saved expenses. The settle-up list matches the people who owe the most with the people who are owed the most until everything is cleared.
 
-## 🛠️ Tech stack
+The AI calls go to Gemini 2.5 Flash through `@google/genai`. Since model output can be wrong, the server checks every category and member name against fixed lists before sending anything back to the client. The chatbot can also fall back to OpenAI (`gpt-3.5-turbo`), or to Groq (`llama-3.3-70b-versatile`) if the key starts with `gsk_`.
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19 (Create React App), Axios |
-| Backend | Node.js, Express 5 |
-| Database | MongoDB with Mongoose |
-| AI | Google Gemini 2.5 Flash via `@google/genai` (text + vision) |
-| Optional chat fallback | OpenAI SDK – `gpt-3.5-turbo`, or Groq `llama-3.3-70b-versatile` when the key starts with `gsk_` |
-| Auth | JSON Web Tokens (`jsonwebtoken`), bcrypt password hashing (`bcryptjs`) |
-| Hosting config | `vercel.json` in both `client/` and `server/` |
+Passwords are hashed with bcrypt and login returns a JWT.
 
-## 🚀 Run locally
+## Running it locally
 
-**You need:** Node.js and npm, a MongoDB database (local or Atlas), and a Google Gemini API key for the AI features.
-
-### 1. Server
+You need Node, a MongoDB database (local or Atlas) and a Gemini API key if you want the AI features.
 
 ```bash
 cd server
 npm install
+cp .env.example .env    # fill in your values
+npm start               # runs on :5001
 ```
 
-Copy `server/.env.example` to `server/.env` and fill in your values:
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `MONGO_URI` | Recommended | MongoDB connection string. If not set, the server uses a local MongoDB at `127.0.0.1:27017`. |
-| `PORT` | Optional | Port the server listens on. Defaults to `5001`, which is what the client expects. |
-| `GEMINI_API_KEY` | For AI | Turns on receipt scan, plain-English entry, auto-categorize and the chatbot. |
-| `OPENAI_API_KEY` | Optional | Used by the chatbot only when `GEMINI_API_KEY` is not set. A key starting with `gsk_` is sent to Groq instead of OpenAI. |
-| `JWT_SECRET` | Recommended | Secret used to sign login tokens. If not set, the server picks a random secret at startup and logs a warning, so tokens stop working after a restart. |
-
-```bash
-npm start
-```
-
-### 2. Client
-
-Open a new terminal:
+Then in another terminal:
 
 ```bash
 cd client
 npm install
-npm start
+npm start               # opens http://localhost:3000
 ```
 
-The app opens at `http://localhost:3000`. To point it at a different server, copy `client/.env.example` to `client/.env`.
+Server settings in `server/.env`:
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `REACT_APP_API_URL` | Optional | Base URL of the server. Defaults to `http://localhost:5001`. |
+- `MONGO_URI`: defaults to a local MongoDB at `127.0.0.1:27017`
+- `PORT`: defaults to `5001`, which is what the client expects
+- `GEMINI_API_KEY`: turns on receipt scan, plain-English entry, auto-category and the chatbot
+- `OPENAI_API_KEY`: optional, only used by the chatbot when there's no Gemini key
+- `JWT_SECRET`: if you leave it out, the server makes a random one at startup and logs a warning, so tokens stop working after a restart
 
-> **Port note:** the server and client both default to port `5001`. If you change `PORT` in `server/.env`, set `REACT_APP_API_URL` in `client/.env` to match.
+If you change the server port, set `REACT_APP_API_URL` in `client/.env` to match (it defaults to `http://localhost:5001`). Both folders have a `vercel.json` for deploying.
 
-## 🔌 API routes
+## API
 
-All routes are served under `/api`.
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/auth/register` | Create an account (name, email, password). Returns `400` if a field is missing and `409` if the email is taken |
-| `POST` | `/api/auth/login` | Log in and get a token |
-| `POST` | `/api/groups/create` | Create a group (name, emoji, members) |
-| `GET` | `/api/groups/user/:username` | List a user's groups with totals and their net balance |
-| `POST` | `/api/expenses/add` | Add an expense and split it equally |
-| `GET` | `/api/expenses/:groupId` | List a group's expenses, newest first |
-| `GET` | `/api/expenses/settlements/:groupId` | Work out who should pay whom to settle up |
-| `GET` | `/api/expenses/user/:username/groups` | List group IDs a user has expenses in |
-| `POST` | `/api/ocr/receipt` | Read a base64 receipt image and return title, amount, category and items |
-| `POST` | `/api/ai/categorize` | Pick a category for an expense title |
-| `POST` | `/api/ai/parse-expense` | Turn a plain-English sentence into expense fields |
-| `POST` | `/api/chat` | Ask the chatbot a question about a group's expenses |
-
-## 📁 Project structure
+Everything is under `/api`:
 
 ```
-Splitly/
-├── AI_FEATURES.md          # Deeper notes on the AI features
-├── client/                 # React app
-│   ├── public/
-│   ├── src/
-│   │   ├── App.js          # Dashboard, group view, balances, settle up
-│   │   ├── components/     # Login, Chatbot, CreateGroupModal, AddExpenseModal
-│   │   ├── index.js
-│   │   └── index.css
-│   ├── package.json
-│   └── vercel.json
-└── server/                 # Express API
-    ├── server.js           # App setup, MongoDB connection, route mounting
-    ├── routes/             # auth, groups, expenses, ocr, ai, chat
-    ├── models/             # Expense, Group, User, Settlement (Mongoose)
-    ├── package.json
-    └── vercel.json
+POST /auth/register                  create an account (409 if the email is taken)
+POST /auth/login                     log in, get a token
+POST /groups/create                  create a group
+GET  /groups/user/:username          a user's groups with totals and their balance
+POST /expenses/add                   add an expense, split equally
+GET  /expenses/:groupId              a group's expenses, newest first
+GET  /expenses/settlements/:groupId  who should pay whom
+GET  /expenses/user/:username/groups group IDs a user has expenses in
+POST /ocr/receipt                    read a base64 receipt image
+POST /ai/categorize                  pick a category for a title
+POST /ai/parse-expense               turn a sentence into expense fields
+POST /chat                           ask the chatbot about a group
 ```
 
-## 📝 Notes
+There are more notes on the AI parts in [AI_FEATURES.md](AI_FEATURES.md).
 
-- Accounts are saved in MongoDB with bcrypt-hashed passwords. Login returns a token, but the other API routes do not check it yet.
-- AI answers can be wrong, so the server checks categories and member names against fixed lists before using them.
+## Known limits
 
----
-
-<div align="center">
-
-Made with ☕ and React by [ganesh-tadigadapa](https://github.com/ganesh-tadigadapa)
-
-</div>
+- Login returns a token, but the other routes don't check it yet. That's the next thing I'd fix.
+- Splits are equal only. No custom shares or percentages.
