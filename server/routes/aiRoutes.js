@@ -88,7 +88,7 @@ Extract:
 Match fuzzy/partial names from the input to the closest group member name. Drop any names that don't match.
 
 Respond with ONLY valid JSON, no markdown, no code fences. Example:
-{"title":"Pizza dinner","amount":600,"category":"Food","paidBy":"Shiva","splitBetween":["Shiva","Raj","Anu"]}
+{"title":"Pizza dinner","amount":600,"category":"Food","paidBy":"Priya","splitBetween":["Priya","Raj","Anu"]}
 
 Input: "${text}"`;
 
