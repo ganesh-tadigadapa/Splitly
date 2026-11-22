@@ -1,4 +1,47 @@
-import { Icon, Monogram, AvatarStack, inr, round2 } from "../ui";
+import { Icon, Monogram, AvatarStack, inr, round2, sameName, relativeDay, isSettlement, expenseDate, MOD } from "../ui";
+import { CategoryBreakdown, DailySpend } from "./Charts";
+
+function ActivityFeed({ expenses, user, onOpenGroup }) {
+  const items = [...expenses]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 8);
+  if (items.length === 0) return <p className="chart-empty">Nothing yet. New expenses and payments show up here.</p>;
+  const who = (n) => (sameName(n, user.name) ? "You" : n);
+  return (
+    <ul className="feed">
+      {items.map((e) => {
+        const settle = isSettlement(e);
+        return (
+          <li key={e._id}>
+            <button className="feed-item" onClick={() => onOpenGroup(e.groupId)}>
+              <span className={`cat-icon${settle ? " settled" : ""}`}>
+                <Icon name={settle ? "check" : e.category} size={15} />
+              </span>
+              <span className="feed-text">
+                <span>
+                  <b>{who(e.paidBy)}</b>{" "}
+                  {settle ? (
+                    <>
+                      paid <b>{who(e.splitAmong[0]?.name)}</b>
+                    </>
+                  ) : (
+                    <>
+                      added <b>{e.title}</b>
+                    </>
+                  )}
+                </span>
+                <small>
+                  {e.groupId} · {relativeDay(expenseDate(e))}
+                </small>
+              </span>
+              <span className={`amount${settle ? " pos" : ""}`}>{inr(e.amount)}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -32,7 +75,7 @@ function Stat({ label, icon, value, tone, sub }) {
   );
 }
 
-function Dashboard({ user, groups, loaded, onOpenGroup, onNewGroup }) {
+function Dashboard({ user, groups, allExpenses = [], loaded, onOpenGroup, onNewGroup }) {
   // netOwe from the API: positive = you owe, negative = you're owed
   const youOwe = groups.reduce((s, g) => s + Math.max(0, g.netOwe || 0), 0);
   const owedToYou = groups.reduce((s, g) => s + Math.max(0, -(g.netOwe || 0)), 0);
@@ -50,7 +93,7 @@ function Dashboard({ user, groups, loaded, onOpenGroup, onNewGroup }) {
           <h1>
             {greeting()}, {firstName}
           </h1>
-          <p>Here's where you stand across all your groups.</p>
+          <p>Here's where you stand across all your groups. Press <kbd>{MOD}K</kbd> to jump anywhere.</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-primary" onClick={onNewGroup}>
@@ -160,6 +203,46 @@ function Dashboard({ user, groups, loaded, onOpenGroup, onNewGroup }) {
           </table>
         )}
       </section>
+
+      {groups.length > 0 && (
+        <div className="overview-grid">
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h2>Recent activity</h2>
+                <p>Latest across all your groups</p>
+              </div>
+              <Icon name="activity" size={16} className="muted" />
+            </div>
+            <ActivityFeed expenses={allExpenses} user={user} onOpenGroup={onOpenGroup} />
+          </section>
+
+          <div>
+            <section className="card">
+              <div className="card-head">
+                <div>
+                  <h2>Spending by category</h2>
+                  <p>All groups combined</p>
+                </div>
+              </div>
+              <div className="card-body">
+                <CategoryBreakdown expenses={allExpenses} />
+              </div>
+            </section>
+            <section className="card">
+              <div className="card-head">
+                <div>
+                  <h2>Last 30 days</h2>
+                  <p>Daily spending across groups</p>
+                </div>
+              </div>
+              <div className="card-body">
+                <DailySpend expenses={allExpenses} />
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
     </>
   );
 }
