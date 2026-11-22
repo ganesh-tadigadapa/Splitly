@@ -225,19 +225,11 @@ const P = {
 
 /* ---------- logo: a coin split in two ---------- */
 export function LogoMark({ size = 28 }) {
-  // unique per instance: a gradient defined inside a hidden element can't be referenced
-  const gid = `splitly-g-${useId().replace(/:/g, "")}`;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="logo-mark">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#34d399" />
-          <stop offset="1" stopColor="#059669" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill={`url(#${gid})`} />
-      <path transform="translate(-1.2 -1.2)" d="M22.36 9.64A9 9 0 0 0 9.64 22.36Z" fill="#06140e" />
-      <path transform="translate(1.2 1.2)" d="M9.64 22.36A9 9 0 0 0 22.36 9.64Z" fill="#ffffff" />
+      <rect width="32" height="32" rx="9" fill="#fafafa" />
+      <path transform="translate(-1.2 -1.2)" d="M22.36 9.64A9 9 0 0 0 9.64 22.36Z" fill="#09090b" />
+      <path transform="translate(1.2 1.2)" d="M9.64 22.36A9 9 0 0 0 22.36 9.64Z" fill="#10b981" />
     </svg>
   );
 }
@@ -432,7 +424,7 @@ export function CountUp({ value, format = (v) => v, duration = 900 }) {
 }
 
 /* ---------- sparkline (single series, area + line) ---------- */
-export function Sparkline({ data, width = 240, height = 56, color = "#34d399" }) {
+export function Sparkline({ data, width = 240, height = 56, color = "#3987e5" }) {
   const gid = `spark-${useId().replace(/:/g, "")}`;
   if (!data.length || data.every((d) => d === 0)) return null;
   const max = Math.max(...data);
