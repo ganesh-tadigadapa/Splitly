@@ -224,14 +224,12 @@ function Dashboard({ user, groups, allExpenses = [], loaded, onOpenGroup, onNewG
                   <Monogram name={g.name} size="lg" />
                   <div className="gc-title">
                     <strong>{g.name}</strong>
-                    <small>
-                      {plural(g.members?.length || 0, "member")} · {plural(g.totalExpenses || 0, "expense")}
-                    </small>
+                    <small>{plural(g.members?.length || 0, "member")}</small>
                   </div>
                   <Icon name="arrowRight" size={16} className="gc-arrow" />
                 </div>
                 <div className="gc-amount">
-                  <span>Total spent</span>
+                  <span>Total spent · {plural(g.totalExpenses || 0, "expense")}</span>
                   <strong>{inr(g.totalAmount || 0)}</strong>
                 </div>
                 <div className="gc-foot">
