@@ -8,21 +8,33 @@ So I built Splitly. You make a group, add expenses, and it works out everyone's 
 
 ## What it does
 
-- Groups with a name, an emoji and a list of members
-- Add an expense with who paid and who shares it (split equally)
-- Balances per member, and a settle-up list. Clicking a payment marks it as settled
-- A dashboard with the total tracked, number of people and groups, and "you owe" / "you're owed" on each group card
+- Groups with a name and a list of members (members don't need an account)
+- Add an expense with who paid, when, and how it's split: **equally**, by **exact amounts**, or by **percentages**
+- Edit or delete any expense (deletes can be undone for a few seconds)
+- Search expenses and filter by category
+- Add people to a group later, or delete a group (you type its name to confirm)
+- Balances per member, and a settle-up list. Click **Mark paid** and confirm to record a payment
+- An overview with your net balance, what you owe, what you're owed and the total tracked, plus a table of your groups with your balance in each
+- Each expense shows your share: how much you lent or owe on it
+- **Insights** per group: spending by category, who paid, daily spending for the last 30 days, your share and the biggest expense
+- **Recent activity** across all your groups, plus combined category and daily-spend charts on the overview
+- **Command menu**: press ⌘K / Ctrl+K to jump to any group or run an action
+- **WhatsApp reminders**: one click opens WhatsApp with a ready-made "you owe…" message
+- **Export** a group's expenses to CSV, or copy a settle-up summary to paste in your group chat
 - **Receipt scan**: upload a photo and it fills in the title, total, category and up to 10 line items
 - **Plain-English entry**: type what happened and it fills in the title, amount, category, payer and split. Names are only matched to people actually in the group
 - **Auto-category** while you type a title (Food, Lodging, Transport, Activities, Shopping or General). It won't override a category you picked yourself
-- **Group chatbot**: ask things like "what's our total?" and it answers using the group's expenses from the database. If there's no AI key or the call fails, it can still answer simple total questions on its own
+- **Ask AI**: a side panel where you ask things like "what's our total?" and it answers using the group's expenses from the database. If there's no AI key or the call fails, it can still answer simple total questions on its own
 
 ## How it's put together
 
 ```
 client/   React 19 (Create React App) + Axios
-  src/App.js          dashboard, group view, balances, settle up
-  src/components/     Login, Chatbot, CreateGroupModal, AddExpenseModal
+  src/App.js          layout (sidebar, routing between views), data loading
+  src/ui.js           shared pieces: icons, money formatting, modal, avatars
+  src/index.css       the whole design system (dark theme)
+  src/components/     Login, Dashboard, GroupDetail, Chatbot,
+                      CreateGroupModal, AddExpenseModal
 server/   Node + Express 5 + MongoDB (Mongoose)
   routes/             auth, groups, expenses, ocr, ai, chat
   models/             Expense, Group, User, Settlement
@@ -70,9 +82,14 @@ Everything is under `/api`:
 ```
 POST /auth/register                  create an account (409 if the email is taken)
 POST /auth/login                     log in, get a token
-POST /groups/create                  create a group
+POST /groups/create                  create a group (409 if the name is taken)
+POST /groups/:name/members           add a member to a group
+DELETE /groups/:name                 delete a group and its expenses
 GET  /groups/user/:username          a user's groups with totals and their balance
-POST /expenses/add                   add an expense, split equally
+POST /expenses/add                   add an expense (equal split, or exact `splits`)
+PUT  /expenses/:id                   edit an expense
+DELETE /expenses/:id                 delete an expense
+GET  /expenses/user/:username/all    every expense in the user's groups
 GET  /expenses/:groupId              a group's expenses, newest first
 GET  /expenses/settlements/:groupId  who should pay whom
 GET  /expenses/user/:username/groups group IDs a user has expenses in
@@ -87,4 +104,4 @@ There are more notes on the AI parts in [AI_FEATURES.md](AI_FEATURES.md).
 ## Known limits
 
 - Login returns a token, but the other routes don't check it yet. That's the next thing I'd fix.
-- Splits are equal only. No custom shares or percentages.
+- Groups are identified by name, so group names have to be unique across the app.
