@@ -1,4 +1,19 @@
-import { Icon, Monogram, AvatarStack, inr, round2, sameName, relativeDay, isSettlement, expenseDate, MOD } from "../ui";
+import {
+  Icon,
+  Monogram,
+  AvatarStack,
+  inr,
+  round2,
+  sameName,
+  relativeDay,
+  isSettlement,
+  expenseDate,
+  dayKey,
+  hueFor,
+  CountUp,
+  Sparkline,
+  MOD,
+} from "../ui";
 import { CategoryBreakdown, DailySpend } from "./Charts";
 
 function ActivityFeed({ expenses, user, onOpenGroup }) {
@@ -60,19 +75,38 @@ export function BalanceBadge({ value }) {
   );
 }
 
-function Stat({ label, icon, value, tone, sub }) {
+function Stat({ label, icon, tone, value, sub, i }) {
   return (
-    <div className="stat">
+    <div className="stat rise" style={{ "--i": i }}>
       <div className="stat-top">
         <span>{label}</span>
-        <span className="stat-icon">
+        <span className={`stat-icon tint-${tone}`}>
           <Icon name={icon} size={15} />
         </span>
       </div>
-      <div className={`stat-value ${tone || ""}`}>{value}</div>
+      <div className="stat-value">
+        <CountUp value={value} format={inr} />
+      </div>
       <div className="stat-sub">{sub}</div>
     </div>
   );
+}
+
+function last30Days(expenses) {
+  const byDay = {};
+  expenses.forEach((e) => {
+    if (isSettlement(e)) return;
+    const k = dayKey(expenseDate(e));
+    byDay[k] = (byDay[k] || 0) + e.amount;
+  });
+  const out = [];
+  const today = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    out.push(byDay[dayKey(d)] || 0);
+  }
+  return out;
 }
 
 function Dashboard({ user, groups, allExpenses = [], loaded, onOpenGroup, onNewGroup }) {
@@ -85,67 +119,88 @@ function Dashboard({ user, groups, allExpenses = [], loaded, onOpenGroup, onNewG
   const owingGroups = groups.filter((g) => round2(g.netOwe || 0) > 0).length;
   const owedGroups = groups.filter((g) => round2(g.netOwe || 0) < 0).length;
   const firstName = (user.name || "").split(" ")[0];
+  const daily = last30Days(allExpenses);
+  const last30 = daily.reduce((a, b) => a + b, 0);
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>
+      <section className={`hero-card rise ${net > 0 ? "is-pos" : net < 0 ? "is-neg" : ""}`} style={{ "--i": 0 }}>
+        <div className="hero-main">
+          <span className="hero-label">
             {greeting()}, {firstName}
-          </h1>
-          <p>Here's where you stand across all your groups. Press <kbd>{MOD}K</kbd> to jump anywhere.</p>
+          </span>
+          <div className={`hero-value ${net > 0 ? "pos" : net < 0 ? "neg" : ""}`}>
+            {net > 0 ? "+" : net < 0 ? "−" : ""}
+            <CountUp value={Math.abs(net)} format={inr} />
+          </div>
+          <p className="hero-caption">
+            {net === 0
+              ? "You're all square across every group."
+              : net > 0
+              ? `Overall you're owed, across ${plural(owedGroups, "group")}.`
+              : `Overall you owe, across ${plural(owingGroups, "group")}.`}
+          </p>
+          <div className="hero-actions">
+            <button className="btn btn-primary" onClick={onNewGroup}>
+              <Icon name="plus" size={16} /> New group
+            </button>
+            <span className="hero-hint">
+              <kbd>{MOD}K</kbd> to jump anywhere
+            </span>
+          </div>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-primary" onClick={onNewGroup}>
-            <Icon name="plus" size={16} /> New group
-          </button>
+        <div className="hero-side">
+          <span className="hero-side-label">Spent in the last 30 days</span>
+          <strong className="hero-side-value">
+            <CountUp value={last30} format={inr} />
+          </strong>
+          <div className="hero-spark">
+            {last30 > 0 ? <Sparkline data={daily} /> : <p className="chart-empty">No spending yet</p>}
+          </div>
+          <div className="hero-side-axis">
+            <span>30 days ago</span>
+            <span>Today</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="stats">
+      <div className="stats stats-3">
         <Stat
-          label="Net balance"
-          icon="scale"
-          value={net === 0 ? inr(0) : `${net > 0 ? "+" : "−"}${inr(net)}`}
-          tone={net > 0 ? "pos" : net < 0 ? "neg" : ""}
-          sub={net === 0 ? "You're all square" : net > 0 ? "Overall you're owed" : "Overall you owe"}
-        />
-        <Stat
+          i={1}
           label="You owe"
           icon="up"
-          value={inr(youOwe)}
-          sub={owingGroups ? `In ${owingGroups} ${owingGroups === 1 ? "group" : "groups"}` : "Nothing to pay"}
+          tone="neg"
+          value={youOwe}
+          sub={owingGroups ? `In ${plural(owingGroups, "group")}` : "Nothing to pay"}
         />
         <Stat
+          i={2}
           label="Owed to you"
           icon="down"
-          value={inr(owedToYou)}
-          sub={owedGroups ? `In ${owedGroups} ${owedGroups === 1 ? "group" : "groups"}` : "Nothing pending"}
+          tone="pos"
+          value={owedToYou}
+          sub={owedGroups ? `In ${plural(owedGroups, "group")}` : "Nothing pending"}
         />
         <Stat
+          i={3}
           label="Total tracked"
           icon="wallet"
-          value={inr(totalTracked)}
-          sub={`${totalExpenses} ${totalExpenses === 1 ? "expense" : "expenses"} logged`}
+          tone="blue"
+          value={totalTracked}
+          sub={`${plural(totalExpenses, "expense")} logged`}
         />
       </div>
 
-      <section className="card">
-        <div className="card-head">
-          <div>
-            <h2>Groups</h2>
-            <p>{groups.length} {groups.length === 1 ? "group" : "groups"}</p>
-          </div>
-          {groups.length > 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={onNewGroup}>
-              <Icon name="plus" size={14} /> New group
-            </button>
-          )}
+      <section className="section-block">
+        <div className="section-title">
+          <h2>Your groups</h2>
+          <span className="muted">{plural(groups.length, "group")}</span>
         </div>
 
         {groups.length === 0 ? (
           loaded && (
-            <div className="empty">
+            <div className="card empty rise" style={{ "--i": 4 }}>
               <span className="empty-icon">
                 <Icon name="users" size={20} />
               </span>
@@ -157,55 +212,45 @@ function Dashboard({ user, groups, allExpenses = [], loaded, onOpenGroup, onNewG
             </div>
           )
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th className="hide-sm">Members</th>
-                <th className="right hide-sm">Expenses</th>
-                <th className="right hide-sm">Total spent</th>
-                <th className="right">Your balance</th>
-                <th className="shrink" aria-hidden="true" />
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((g) => (
-                <tr
-                  key={g._id || g.name}
-                  className="clickable"
-                  onClick={() => onOpenGroup(g.name)}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && onOpenGroup(g.name)}
-                >
-                  <td>
-                    <div className="cell-main">
-                      <Monogram name={g.name} />
-                      <div>
-                        <strong>{g.name}</strong>
-                        <small>{g.members?.length || 0} members</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="hide-sm">
-                    <AvatarStack names={g.members || []} />
-                  </td>
-                  <td className="right hide-sm num muted">{g.totalExpenses || 0}</td>
-                  <td className="right hide-sm amount">{inr(g.totalAmount || 0)}</td>
-                  <td className="right">
-                    <BalanceBadge value={g.netOwe || 0} />
-                  </td>
-                  <td className="shrink">
-                    <Icon name="chevron" size={16} className="row-chevron" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="group-grid">
+            {groups.map((g, idx) => (
+              <button
+                key={g._id || g.name}
+                className="group-card rise"
+                style={{ "--h": hueFor(g.name), "--i": Math.min(idx + 4, 12) }}
+                onClick={() => onOpenGroup(g.name)}
+              >
+                <div className="gc-top">
+                  <Monogram name={g.name} size="lg" />
+                  <div className="gc-title">
+                    <strong>{g.name}</strong>
+                    <small>{plural(g.members?.length || 0, "member")}</small>
+                  </div>
+                  <Icon name="arrowRight" size={16} className="gc-arrow" />
+                </div>
+                <div className="gc-amount">
+                  <span>Total spent · {plural(g.totalExpenses || 0, "expense")}</span>
+                  <strong>{inr(g.totalAmount || 0)}</strong>
+                </div>
+                <div className="gc-foot">
+                  <AvatarStack names={g.members || []} />
+                  <BalanceBadge value={g.netOwe || 0} />
+                </div>
+              </button>
+            ))}
+            <button className="group-card is-new rise" style={{ "--i": Math.min(groups.length + 4, 12) }} onClick={onNewGroup}>
+              <span className="gc-plus">
+                <Icon name="plus" size={20} />
+              </span>
+              <strong>New group</strong>
+              <small>A trip, a flat, a dinner…</small>
+            </button>
+          </div>
         )}
       </section>
 
       {groups.length > 0 && (
-        <div className="overview-grid">
+        <div className="overview-grid rise" style={{ "--i": 6 }}>
           <section className="card">
             <div className="card-head">
               <div>

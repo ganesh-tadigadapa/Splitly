@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
@@ -38,7 +38,7 @@ export function shortDate(iso) {
 }
 
 /* ---------- monogram ---------- */
-function hueFor(str = "") {
+export function hueFor(str = "") {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360;
   return h;
@@ -145,6 +145,36 @@ const P = {
   down: <path d="M17 7 7 17M17 17H7V7" />,
   scale: <path d="M12 3v18M5 21h14M3 7h18M6 7l-3 7a3 3 0 0 0 6 0zM18 7l-3 7a3 3 0 0 0 6 0z" />,
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  mail: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 6-10 7L2 6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </>
+  ),
+  user: (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="7" />
@@ -193,16 +223,21 @@ const P = {
   ),
 };
 
-/* ---------- logo ---------- */
+/* ---------- logo: a coin split in two ---------- */
+export function LogoMark({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="logo-mark">
+      <rect width="32" height="32" rx="9" fill="#fafafa" />
+      <path transform="translate(-1.2 -1.2)" d="M22.36 9.64A9 9 0 0 0 9.64 22.36Z" fill="#09090b" />
+      <path transform="translate(1.2 1.2)" d="M9.64 22.36A9 9 0 0 0 22.36 9.64Z" fill="#10b981" />
+    </svg>
+  );
+}
+
 export function Logo({ size = 28 }) {
   return (
     <span className="logo">
-      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="8" fill="#fafafa" />
-        <path d="M11 21 21 11" stroke="#09090b" strokeWidth="2.6" strokeLinecap="round" />
-        <circle cx="11.5" cy="11.5" r="2.6" fill="#09090b" />
-        <circle cx="20.5" cy="20.5" r="2.6" fill="#10b981" />
-      </svg>
+      <LogoMark size={size} />
       <span>Splitly</span>
     </span>
   );
@@ -354,3 +389,61 @@ export function useOutsideClose(ref, open, onClose) {
 
 export const MOD =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
+
+
+/* ---------- animated number ---------- */
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** Counts up to `value` once on mount and eases to new values after that. */
+export function CountUp({ value, format = (v) => v, duration = 900 }) {
+  const [shown, setShown] = useState(prefersReducedMotion() ? value : 0);
+  const fromRef = useRef(shown);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setShown(value);
+      return;
+    }
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = from + (value - from) * eased;
+      setShown(v);
+      fromRef.current = v;
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+
+  return <>{format(shown)}</>;
+}
+
+/* ---------- sparkline (single series, area + line) ---------- */
+export function Sparkline({ data, width = 240, height = 56, color = "#3987e5" }) {
+  const gid = `spark-${useId().replace(/:/g, "")}`;
+  if (!data.length || data.every((d) => d === 0)) return null;
+  const max = Math.max(...data);
+  const step = width / Math.max(1, data.length - 1);
+  const pts = data.map((d, i) => [i * step, height - 4 - (d / max) * (height - 10)]);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
+  const area = `${line} L${width} ${height} L0 ${height} Z`;
+  const last = pts[pts.length - 1];
+  return (
+    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.28" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0]} cy={last[1]} r="3.5" fill={color} stroke="#0b0b0e" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
