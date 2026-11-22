@@ -1,118 +1,147 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-
-const emojis = ['🌴', '🏠', '🍕', '✈️', '🎉', '🚗', '🏕️', '🎬', '⛱️', '🎂', '☕', '🛒'];
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { API, Icon, Modal, sameName } from "../ui";
 
 function CreateGroupModal({ isOpen, onClose, user, onGroupCreated }) {
-  const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('🌴');
-  const [members, setMembers] = useState(['You']); // 'You' corresponds to the current user
-  
+  const [name, setName] = useState("");
+  const [others, setOthers] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setName("");
+      setOthers([]);
+      setDraft("");
+      setError("");
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const handleAddMember = () => {
-    setMembers([...members, `Member ${members.length + 1}`]);
-  };
-
-  const handleMemberChange = (index, value) => {
-    const newMembers = [...members];
-    newMembers[index] = value;
-    setMembers(newMembers);
-  };
-
-  const handleSubmit = async () => {
-    if (!name.trim()) {
-      alert("Group name is required");
-      return;
-    }
-
-    // Process members: replace 'You' with actual username, filter out empties, and remove duplicates (case-insensitive)
-    const uniqueMembersMap = new Map();
-    members.forEach(m => {
-      let name = m.toLowerCase() === 'you' ? user.name : m.trim();
-      if (name.length > 0) {
-        uniqueMembersMap.set(name.toLowerCase(), name);
-      }
-    });
-
-    const finalMembers = Array.from(uniqueMembersMap.values());
-
-    // Ensure user is always in the group
-    if (!uniqueMembersMap.has(user.name.toLowerCase())) {
-      finalMembers.push(user.name);
-    }
-
-    try {
-      await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/groups/create`, {
-        name: name.trim(),
-        emoji,
-        members: finalMembers,
-        createdBy: user.name
+  const addDraft = () => {
+    const parts = draft
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!parts.length) return;
+    setOthers((cur) => {
+      const next = [...cur];
+      parts.forEach((p) => {
+        if (!sameName(p, user.name) && !next.some((x) => sameName(x, p))) next.push(p);
       });
-      
+      return next;
+    });
+    setDraft("");
+  };
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    setError("");
+
+    // include anything still typed in the member box
+    const pending = draft
+      .split(",")
+      .map((s) => s.trim())
+      .filter((p) => p && !sameName(p, user.name) && !others.some((x) => sameName(x, p)));
+    const finalMembers = [user.name, ...others, ...pending];
+
+    if (!name.trim()) return setError("Give the group a name.");
+    if (finalMembers.length < 2) return setError("Add at least one other person.");
+
+    setSaving(true);
+    try {
+      await axios.post(`${API}/api/groups/create`, {
+        name: name.trim(),
+        members: finalMembers,
+        createdBy: user.name,
+      });
       onGroupCreated();
       onClose();
     } catch (err) {
-      console.error("Failed to create group", err);
-      alert("Failed to create group");
+      setError(err.response?.data?.msg || "Couldn't create the group. Try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>&times;</button>
-        <h2>Create a new group</h2>
-
-        <div className="form-group">
-          <label>Group name</label>
-          <input 
-            type="text" 
-            placeholder="e.g. Weekend Cabin" 
-            value={name} 
-            onChange={e => setName(e.target.value)} 
+    <Modal
+      title="New group"
+      subtitle="Who are you splitting with?"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Creating…" : "Create group"}
+          </button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="g-name">Group name</label>
+          <input
+            id="g-name"
+            className="input"
+            type="text"
+            placeholder="Goa trip, Flat 4B, Friday lunch…"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
           />
         </div>
 
-        <div className="form-group">
-          <label>Pick an emoji</label>
-          <div className="emoji-picker">
-            {emojis.map(e => (
-              <div 
-                key={e} 
-                className={`emoji-btn ${emoji === e ? 'active' : ''}`}
-                onClick={() => setEmoji(e)}
-              >
-                {e}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label>Members</label>
-          <div className="members-list">
-            {members.map((member, index) => (
-              <div className="member-input-row" key={index}>
-                <input 
-                  type="text" 
-                  value={member} 
-                  disabled={index === 0 && member === 'You'}
-                  onChange={(e) => handleMemberChange(index, e.target.value)}
-                />
-              </div>
-            ))}
-            <button className="btn-outline" onClick={handleAddMember} style={{ textAlign: 'left', marginTop: '8px' }}>
-              + Add member
+        <div className="field">
+          <label htmlFor="g-member">Members</label>
+          <div className="assist-row">
+            <input
+              id="g-member"
+              className="input"
+              type="text"
+              placeholder="Type a name, press Enter"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === ",") {
+                  e.preventDefault();
+                  addDraft();
+                } else if (e.key === "Backspace" && !draft && others.length) {
+                  setOthers(others.slice(0, -1));
+                }
+              }}
+            />
+            <button type="button" className="btn btn-ghost" onClick={addDraft} disabled={!draft.trim()}>
+              Add
             </button>
           </div>
+          <div className="chips" style={{ marginTop: 10 }}>
+            <span className="chip is-static">You</span>
+            {others.map((m) => (
+              <span className="chip is-static" key={m}>
+                {m}
+                <button
+                  type="button"
+                  className="chip-remove"
+                  onClick={() => setOthers(others.filter((x) => x !== m))}
+                  aria-label={`Remove ${m}`}
+                >
+                  <Icon name="x" size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <p className="hint">Use the same names when logging expenses. They don't need an account.</p>
         </div>
 
-        <button className="btn-primary" style={{ width: '100%', marginTop: '24px' }} onClick={handleSubmit}>
-          Create group
-        </button>
-      </div>
-    </div>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <button type="submit" hidden />
+      </form>
+    </Modal>
   );
 }
 

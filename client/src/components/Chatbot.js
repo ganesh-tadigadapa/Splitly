@@ -1,93 +1,122 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
+import { API, Icon } from "../ui";
 
-function Chatbot({ groupId }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { sender: "ai", text: "Hi! I'm Splitly AI. Ask me about your group's expenses!" }
-  ]);
+const SUGGESTIONS = ["Who owes the most right now?", "What was the biggest expense?", "Summarize spending in this group"];
+
+function Chatbot({ open, onClose, groupId }) {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const endRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
-    const userMsg = { sender: "user", text: input };
-    setMessages((prev) => [...prev, userMsg]);
+  // fresh conversation per group
+  useEffect(() => {
+    setMessages([]);
+  }, [groupId]);
+
+  const send = async (text) => {
+    const msg = (text ?? input).trim();
+    if (!msg || loading) return;
+    setMessages((prev) => [...prev, { sender: "user", text: msg }]);
     setInput("");
     setLoading(true);
-
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/chat`, {
-        message: userMsg.text,
-        groupId
-      });
-
+      const res = await axios.post(`${API}/api/chat`, { message: msg, groupId });
       setMessages((prev) => [...prev, { sender: "ai", text: res.data.reply }]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
-        { sender: "ai", text: "Oops, something went wrong connecting to the AI." }
+        { sender: "ai", text: "I couldn't reach the assistant just now. Please try again." },
       ]);
     } finally {
       setLoading(false);
     }
   };
 
+  if (!open) return null;
+
   return (
-    <div className="chatbot-widget">
-      {isOpen && (
-        <div className="chatbot-window">
-          <div className="chatbot-header">
-            <span>✨ Splitly AI</span>
-            <button
-              style={{ width: 'auto', padding: '4px 8px', margin: 0, background: 'transparent', boxShadow: 'none', color: '#94a3b8' }}
-              onClick={() => setIsOpen(false)}
-            >
-              ✖
-            </button>
+    <>
+      <div className="drawer-backdrop" onClick={onClose} />
+      <div className="assistant" role="dialog" aria-label="AI assistant">
+        <div className="assistant-head">
+          <div>
+            <strong>Ask AI</strong>
+            <small>Answers based on {groupId}</small>
           </div>
-
-          <div className="chatbot-messages">
-            {messages.map((m, i) => (
-              <div key={i} className={`msg ${m.sender}`}>
-                {m.text}
-              </div>
-            ))}
-            {loading && <div className="msg ai">Typing...</div>}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="chatbot-input">
-            <input
-              type="text"
-              value={input}
-              placeholder="Ask anything..."
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            />
-            <button onClick={handleSend} disabled={loading}>
-              ➤
-            </button>
-          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close assistant">
+            <Icon name="x" />
+          </button>
         </div>
-      )}
 
-      {!isOpen && (
-        <div className="chatbot-btn" onClick={() => setIsOpen(true)}>
-          🤖
+        <div className="assistant-log">
+          <div className="bubble ai">
+            Ask about balances, who paid for what, or where the money went in <b>{groupId}</b>.
+          </div>
+          {messages.length === 0 && (
+            <div className="suggestions">
+              <span className="suggestions-label">Try asking</span>
+              {SUGGESTIONS.map((s) => (
+                <button key={s} onClick={() => send(s)}>
+                  {s}
+                  <Icon name="arrowRight" size={14} />
+                </button>
+              ))}
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`bubble ${m.sender}`}>
+              {m.text}
+            </div>
+          ))}
+          {loading && (
+            <div className="bubble ai" aria-label="Thinking">
+              <span className="typing">
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
+          )}
+          <div ref={endRef} />
         </div>
-      )}
-    </div>
+
+        <form
+          className="assistant-input"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+        >
+          <input
+            ref={inputRef}
+            className="input"
+            type="text"
+            value={input}
+            placeholder="Ask a question…"
+            onChange={(e) => setInput(e.target.value)}
+            aria-label="Message"
+          />
+          <button className="btn btn-primary" type="submit" disabled={loading || !input.trim()} aria-label="Send">
+            <Icon name="send" size={16} />
+          </button>
+        </form>
+      </div>
+    </>
   );
 }
 
