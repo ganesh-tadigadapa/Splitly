@@ -11,6 +11,8 @@ const ExpenseSchema = new mongoose.Schema(
     paidBy: String,
     members: [String],
     groupId: String, // 🔥 MUST EXIST
+    // When the expense happened (defaults to when it was logged)
+    date: Date,
     splitAmong: [
       {
         name: String,
