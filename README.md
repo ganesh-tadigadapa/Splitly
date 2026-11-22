@@ -8,21 +8,25 @@ So I built Splitly. You make a group, add expenses, and it works out everyone's 
 
 ## What it does
 
-- Groups with a name, an emoji and a list of members
+- Groups with a name and a list of members (members don't need an account)
 - Add an expense with who paid and who shares it (split equally)
-- Balances per member, and a settle-up list. Clicking a payment marks it as settled
-- A dashboard with the total tracked, number of people and groups, and "you owe" / "you're owed" on each group card
+- Balances per member, and a settle-up list. Click **Mark paid** and confirm to record a payment
+- An overview with your net balance, what you owe, what you're owed and the total tracked, plus a table of your groups with your balance in each
+- Each expense shows your share: how much you lent or owe on it
 - **Receipt scan**: upload a photo and it fills in the title, total, category and up to 10 line items
 - **Plain-English entry**: type what happened and it fills in the title, amount, category, payer and split. Names are only matched to people actually in the group
 - **Auto-category** while you type a title (Food, Lodging, Transport, Activities, Shopping or General). It won't override a category you picked yourself
-- **Group chatbot**: ask things like "what's our total?" and it answers using the group's expenses from the database. If there's no AI key or the call fails, it can still answer simple total questions on its own
+- **Ask AI**: a side panel where you ask things like "what's our total?" and it answers using the group's expenses from the database. If there's no AI key or the call fails, it can still answer simple total questions on its own
 
 ## How it's put together
 
 ```
 client/   React 19 (Create React App) + Axios
-  src/App.js          dashboard, group view, balances, settle up
-  src/components/     Login, Chatbot, CreateGroupModal, AddExpenseModal
+  src/App.js          layout (sidebar, routing between views), data loading
+  src/ui.js           shared pieces: icons, money formatting, modal, avatars
+  src/index.css       the whole design system (dark theme)
+  src/components/     Login, Dashboard, GroupDetail, Chatbot,
+                      CreateGroupModal, AddExpenseModal
 server/   Node + Express 5 + MongoDB (Mongoose)
   routes/             auth, groups, expenses, ocr, ai, chat
   models/             Expense, Group, User, Settlement
