@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
 export const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
@@ -145,6 +145,36 @@ const P = {
   down: <path d="M17 7 7 17M17 17H7V7" />,
   scale: <path d="M12 3v18M5 21h14M3 7h18M6 7l-3 7a3 3 0 0 0 6 0zM18 7l-3 7a3 3 0 0 0 6 0z" />,
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  mail: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 6-10 7L2 6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </>
+  ),
+  user: (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22" />
+    </>
+  ),
   search: (
     <>
       <circle cx="11" cy="11" r="7" />
@@ -193,16 +223,29 @@ const P = {
   ),
 };
 
-/* ---------- logo ---------- */
+/* ---------- logo: a coin split in two ---------- */
+export function LogoMark({ size = 28 }) {
+  // unique per instance: a gradient defined inside a hidden element can't be referenced
+  const gid = `splitly-g-${useId().replace(/:/g, "")}`;
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="logo-mark">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#34d399" />
+          <stop offset="1" stopColor="#059669" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="9" fill={`url(#${gid})`} />
+      <path transform="translate(-1.2 -1.2)" d="M22.36 9.64A9 9 0 0 0 9.64 22.36Z" fill="#06140e" />
+      <path transform="translate(1.2 1.2)" d="M9.64 22.36A9 9 0 0 0 22.36 9.64Z" fill="#ffffff" />
+    </svg>
+  );
+}
+
 export function Logo({ size = 28 }) {
   return (
     <span className="logo">
-      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="8" fill="#fafafa" />
-        <path d="M11 21 21 11" stroke="#09090b" strokeWidth="2.6" strokeLinecap="round" />
-        <circle cx="11.5" cy="11.5" r="2.6" fill="#09090b" />
-        <circle cx="20.5" cy="20.5" r="2.6" fill="#10b981" />
-      </svg>
+      <LogoMark size={size} />
       <span>Splitly</span>
     </span>
   );
