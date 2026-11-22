@@ -1,4 +1,4 @@
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
@@ -38,7 +38,7 @@ export function shortDate(iso) {
 }
 
 /* ---------- monogram ---------- */
-function hueFor(str = "") {
+export function hueFor(str = "") {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360;
   return h;
@@ -397,3 +397,61 @@ export function useOutsideClose(ref, open, onClose) {
 
 export const MOD =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
+
+
+/* ---------- animated number ---------- */
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** Counts up to `value` once on mount and eases to new values after that. */
+export function CountUp({ value, format = (v) => v, duration = 900 }) {
+  const [shown, setShown] = useState(prefersReducedMotion() ? value : 0);
+  const fromRef = useRef(shown);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setShown(value);
+      return;
+    }
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = from + (value - from) * eased;
+      setShown(v);
+      fromRef.current = v;
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+
+  return <>{format(shown)}</>;
+}
+
+/* ---------- sparkline (single series, area + line) ---------- */
+export function Sparkline({ data, width = 240, height = 56, color = "#34d399" }) {
+  const gid = `spark-${useId().replace(/:/g, "")}`;
+  if (!data.length || data.every((d) => d === 0)) return null;
+  const max = Math.max(...data);
+  const step = width / Math.max(1, data.length - 1);
+  const pts = data.map((d, i) => [i * step, height - 4 - (d / max) * (height - 10)]);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
+  const area = `${line} L${width} ${height} L0 ${height} Z`;
+  const last = pts[pts.length - 1];
+  return (
+    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.28" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0]} cy={last[1]} r="3.5" fill={color} stroke="#0b0b0e" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}

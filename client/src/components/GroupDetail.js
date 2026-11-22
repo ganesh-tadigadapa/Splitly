@@ -17,6 +17,7 @@ import {
   downloadFile,
   csvCell,
   useOutsideClose,
+  hueFor,
 } from "../ui";
 import { useToast } from "./Toasts";
 import { CategoryBreakdown, DailySpend, PaidBy } from "./Charts";
@@ -242,7 +243,7 @@ function GroupDetail({
         <span className="current">{groupId}</span>
       </nav>
 
-      <div className="page-head">
+      <div className="page-head group-banner rise" style={{ "--h": hueFor(groupId), "--i": 0 }}>
         <div className="group-title">
           <Monogram name={groupId} size="lg" />
           <div style={{ minWidth: 0 }}>
@@ -303,7 +304,7 @@ function GroupDetail({
         </div>
       </div>
 
-      <div className="tabs" role="tablist">
+      <div className="tabs rise" role="tablist" style={{ "--i": 1 }}>
         <button role="tab" aria-selected={tab === "expenses"} className={tab === "expenses" ? "on" : ""} onClick={() => setTab("expenses")}>
           <Icon name="list" size={15} /> Expenses <span className="tab-count">{spend.length}</span>
         </button>
@@ -313,7 +314,7 @@ function GroupDetail({
       </div>
 
       {tab === "insights" ? (
-        <div className="insights">
+        <div className="insights rise" style={{ "--i": 2 }}>
           <div className="stats">
             <div className="stat">
               <div className="stat-top">Total spent</div>
@@ -376,7 +377,7 @@ function GroupDetail({
           </section>
         </div>
       ) : (
-        <div className="detail-grid">
+        <div className="detail-grid rise" style={{ "--i": 2 }}>
           <section className="card" aria-label="Expenses">
             <div className="toolbar">
               <div className="search">
