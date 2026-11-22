@@ -11,7 +11,7 @@ This app is a group bill-splitting tool with four AI-powered features built on t
 **AI concept:** Multimodal **Vision-Language Model (VLM)**. The receipt image is sent to Gemini along with a structured prompt asking the model to read the image and respond in JSON.
 
 **Flow:**
-1. User taps **📷 Scan receipt** in the Add Expense modal.
+1. User taps **Scan receipt** in the Add Expense modal.
 2. Frontend reads the image, base64-encodes it.
 3. `POST /api/ocr/receipt` sends `{ image, mimeType }` to the backend.
 4. Backend forwards the image + a JSON-only prompt to Gemini Vision.
@@ -33,7 +33,7 @@ This app is a group bill-splitting tool with four AI-powered features built on t
 **AI concept:** **Structured information extraction** with constrained output. The prompt restricts the model to a fixed JSON schema and a closed set of category values. Member names are also constrained — the prompt receives the actual group member list, and any name the model returns that isn't in that list is dropped server-side.
 
 **Flow:**
-1. User types into the Quick Entry input → presses **Parse**.
+1. User types into the Quick Entry input → presses **Fill** (or Enter).
 2. `POST /api/ai/parse-expense` with `{ text, members, currentUser }`.
 3. Gemini receives a prompt with the schema, the member list, and the user's text.
 4. Backend safely parses the JSON (handles markdown fences, malformed output).
@@ -77,7 +77,7 @@ This app is a group bill-splitting tool with four AI-powered features built on t
 **AI concept:** **Retrieval-Augmented Generation (RAG), simple form.** Instead of relying on the model's general knowledge, the backend fetches the group's actual expense data from MongoDB at query time, formats it into a textual context, and prepends it to the system prompt. The model answers grounded in real, current data.
 
 **Flow:**
-1. User opens the 🤖 widget and asks a question.
+1. User opens the **Ask AI** panel (sidebar or group page) and asks a question.
 2. `POST /api/chat` with `{ message, groupId }`.
 3. Backend queries MongoDB for all expenses in that group.
 4. Backend builds a context block ("Here are the recent expenses…") with explicit ₹ INR currency.
@@ -135,9 +135,9 @@ No secrets ship with the project. Before starting the server, copy `server/.env.
 
 1. **Sign up** → create a group (`Goa trip`) with members.
 2. **Receipt OCR demo:** Click *Add expense* → *Scan receipt* → upload any restaurant bill photo → form fills itself. *"This used Gemini's vision capability to extract structured data from an image."*
-3. **NL entry demo:** In the same modal, type *"I paid 1200 for cabs for me and Raj"* → click Parse → form fills. *"Constrained JSON extraction — the model is forced to pick from our member list and category list."*
+3. **NL entry demo:** In the same modal, type *"I paid 1200 for cabs for me and Raj"* → click Fill → form fills. *"Constrained JSON extraction — the model is forced to pick from our member list and category list."*
 4. **Auto-categorize demo:** Manually type *"Movie tickets"* in the title → watch the category flip to *Activities*. *"Zero-shot classification with debouncing."*
-5. **Chatbot demo:** Open the 🤖 widget. Ask *"Who paid the most?"* and *"What's our total?"* *"This is RAG — we pull real data from MongoDB and inject it into the prompt before the LLM answers."*
+5. **Chatbot demo:** Open **Ask AI**. Ask *"Who paid the most?"* and *"What's our total?"* *"This is RAG — we pull real data from MongoDB and inject it into the prompt before the LLM answers."*
 6. **Show graceful failure:** Mention what happens when the API key is missing — the offline fallback handles common queries deterministically.
 
 ---
