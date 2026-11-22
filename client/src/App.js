@@ -1,356 +1,354 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 
 import Login from "./components/Login";
 import Chatbot from "./components/Chatbot";
 import CreateGroupModal from "./components/CreateGroupModal";
 import AddExpenseModal from "./components/AddExpenseModal";
+import Dashboard from "./components/Dashboard";
+import GroupDetail, { exportGroupCsv } from "./components/GroupDetail";
+import GroupSettingsModal from "./components/GroupSettingsModal";
+import CommandPalette from "./components/CommandPalette";
+import { ToastProvider, useToast } from "./components/Toasts";
+import { API, Icon, Logo, Monogram, round2, inr, MOD } from "./ui";
 
-function App() {
-  const [user, setUser] = useState(null);
+function AppInner() {
+  const toast = useToast();
+  const [user, setUserState] = useState(() => {
+    try {
+      const saved = localStorage.getItem("user");
+      return saved && localStorage.getItem("token") ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setUser = (u) => {
+    setUserState(u);
+    try {
+      if (u) localStorage.setItem("user", JSON.stringify(u));
+      else localStorage.removeItem("user");
+    } catch {}
+  };
+
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
-  
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [allExpenses, setAllExpenses] = useState([]);
   const [groupId, setGroupId] = useState(null);
-  
   const [myGroups, setMyGroups] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [groupLoading, setGroupLoading] = useState(false);
 
-  // 🔄 Fetch all data
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [expenseModal, setExpenseModal] = useState({ open: false, expense: null });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       if (user?.name) {
-        const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/groups/user/${user.name}`);
-        setMyGroups(res.data);
+        const who = encodeURIComponent(user.name);
+        const [groupsRes, allRes] = await Promise.all([
+          axios.get(`${API}/api/groups/user/${who}`),
+          axios.get(`${API}/api/expenses/user/${who}/all`).catch(() => ({ data: [] })),
+        ]);
+        setMyGroups(groupsRes.data);
+        setAllExpenses(allRes.data);
       }
-
       if (groupId) {
-        const exp = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/expenses/${groupId}`);
+        const id = encodeURIComponent(groupId);
+        const [exp, setl] = await Promise.all([
+          axios.get(`${API}/api/expenses/${id}`),
+          axios.get(`${API}/api/expenses/settlements/${id}`),
+        ]);
         setExpenses(exp.data);
-
-        const setl = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/expenses/settlements/${groupId}`);
         setSettlements(setl.data);
       }
     } catch (err) {
       console.log("FETCH ERROR:", err);
+      if (!err.response) toast({ message: "Can't reach the server. Is the backend running?", tone: "error" });
+    } finally {
+      setLoaded(true);
+      setGroupLoading(false);
     }
-  }, [groupId, user]);
+  }, [groupId, user, toast]);
 
   useEffect(() => {
     if (user) fetchData();
   }, [user, fetchData]);
 
+  // ⌘K / Ctrl+K opens the command palette
+  useEffect(() => {
+    if (!user) return;
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsPaletteOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [user]);
+
+  const openGroup = useCallback(
+    (gId) => {
+      if (gId !== groupId) {
+        setExpenses([]);
+        setSettlements([]);
+        setGroupLoading(true);
+      }
+      setGroupId(gId);
+      setNavOpen(false);
+      window.scrollTo(0, 0);
+    },
+    [groupId]
+  );
+
+  const goHome = () => {
+    setGroupId(null);
+    setNavOpen(false);
+  };
+
   const handleLogout = () => {
     setUser(null);
+    setGroupId(null);
+    setMyGroups([]);
+    setAllExpenses([]);
     localStorage.removeItem("token");
   };
 
-  const handleGroupClick = (gId) => {
-    setGroupId(gId);
-    setActiveTab('group-details');
-  };
+  const currentGroup = groupId ? myGroups.find((g) => g.name === groupId) : null;
+  const members = useMemo(() => currentGroup?.members || [], [currentGroup]);
+  const chatGroup = groupId || (myGroups.length > 0 ? myGroups[0].name : "General");
 
-  // 🔐 LOGIN SCREEN
+  const commands = useMemo(() => {
+    const list = [
+      { id: "home", label: "Go to Overview", icon: "home", run: goHome },
+      { id: "new-group", label: "Create a new group", icon: "plus", run: () => setIsGroupModalOpen(true) },
+    ];
+    if (groupId) {
+      list.unshift({
+        id: "add-expense",
+        label: `Add expense to ${groupId}`,
+        icon: "plus",
+        run: () => setExpenseModal({ open: true, expense: null }),
+      });
+      list.push(
+        {
+          id: "export",
+          label: `Export ${groupId} as CSV`,
+          icon: "download",
+          run: () => {
+            exportGroupCsv(groupId, expenses, members);
+            toast({ message: "CSV downloaded" });
+          },
+        },
+        { id: "settings", label: `${groupId} settings`, icon: "settings", run: () => setIsSettingsOpen(true) }
+      );
+    }
+    list.push(
+      { id: "ask", label: "Ask AI about spending", icon: "message", run: () => setIsChatOpen(true) },
+      { id: "logout", label: "Log out", icon: "logout", run: handleLogout }
+    );
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId, expenses, members]);
+
   if (!user) return <Login setUser={setUser} />;
 
-  // Calculate overall stats for the dashboard
-  const totalTracked = myGroups.reduce((sum, g) => sum + (g.totalAmount || 0), 0);
-  const totalPeople = [...new Set(myGroups.flatMap(g => g.members))].length;
-  const totalGroups = myGroups.length;
-
-  // Money formatting — zeroes out floating-point dust (e.g. 0.00333... → 0.00)
-  const fmt = (n) => {
-    const v = Number(n) || 0;
-    return (Math.abs(v) < 0.01 ? 0 : v).toFixed(2);
-  };
-
   return (
-    <div className="layout-container">
-      {/* TOP NAV */}
-      <nav className="top-nav">
-        <div className="nav-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('dashboard')}>
-          <div className="nav-brand-icon">
-            <i className="fas fa-wallet"></i>
-          </div>
-          <div className="nav-brand-text">
-            <h2>Splitly</h2>
-            <p>Split smart, settle easy</p>
-          </div>
+    <div className={`app${navOpen ? " nav-open" : ""}`}>
+      <aside className="sidebar" aria-label="Navigation">
+        <div className="sidebar-top">
+          <button onClick={goHome} aria-label="Splitly home">
+            <Logo />
+          </button>
         </div>
-        <div className="nav-actions">
-          <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        </div>
-      </nav>
-      
-      <div className="main-content">
-        {activeTab === 'dashboard' && (
-          <>
-            {/* HERO SECTION */}
-            <div className="hero-section">
-              <div className="hero-content">
-                <h1>Split expenses without the awkward math.</h1>
-                <p>Track shared costs across trips, roommates, and friend groups. Get instant balances and AI-powered insights.</p>
-                <button className="btn-secondary" onClick={() => setIsModalOpen(true)}>
-                  + New Group
-                </button>
-              </div>
+
+        <div className="sidebar-scroll">
+          <button
+            className="search-trigger"
+            onClick={() => {
+              setIsPaletteOpen(true);
+              setNavOpen(false);
+            }}
+          >
+            <Icon name="search" size={15} />
+            <span>Search…</span>
+            <kbd>{MOD}K</kbd>
+          </button>
+
+          <nav className="nav-section">
+            <button className={`nav-item${!groupId ? " active" : ""}`} onClick={goHome}>
+              <Icon name="home" size={16} />
+              <span className="nav-label">Overview</span>
+            </button>
+            <button
+              className="nav-item"
+              onClick={() => {
+                setIsChatOpen(true);
+                setNavOpen(false);
+              }}
+            >
+              <Icon name="message" size={16} />
+              <span className="nav-label">Ask AI</span>
+            </button>
+          </nav>
+
+          <nav className="nav-section" aria-label="Groups">
+            <div className="nav-heading">
+              <span>Groups</span>
+              <button
+                className="icon-btn"
+                onClick={() => {
+                  setIsGroupModalOpen(true);
+                  setNavOpen(false);
+                }}
+                aria-label="New group"
+                title="New group"
+              >
+                <Icon name="plus" size={14} />
+              </button>
             </div>
-
-            {/* STATS GRID */}
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon" style={{color: '#10b981'}}>💵</div>
-                <div className="stat-value">₹{fmt(totalTracked)}</div>
-                <div className="stat-label">Total tracked</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon" style={{color: '#3b82f6'}}>👥</div>
-                <div className="stat-value">{totalPeople}</div>
-                <div className="stat-label">People</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon" style={{color: '#f97316'}}>🟠</div>
-                <div className="stat-value">{totalGroups}</div>
-                <div className="stat-label">Groups</div>
-              </div>
-            </div>
-
-            {/* YOUR GROUPS */}
-            <div>
-              <div className="section-header">
-                <h2 className="section-title">Your groups</h2>
-                <button className="btn-outline" onClick={() => setIsModalOpen(true)}>+ New group</button>
-              </div>
-
-              <div className="group-grid">
-                {myGroups.map(g => (
-                  <div key={g._id || g.name} className="group-card" onClick={() => handleGroupClick(g.name)}>
-                    <div className="group-card-header">
-                      <div className="group-emoji">{g.emoji || '🌴'}</div>
-                      <div className="group-info">
-                        <h3>{g.name}</h3>
-                        <p>{g.members?.length || 0} members • {g.totalExpenses || 0} expenses</p>
-                      </div>
-                      <div style={{marginLeft: 'auto', color: '#cbd5e1'}}>→</div>
-                    </div>
-                    
-                    <div className="group-stats">
-                      <div className="group-stat-item">
-                        <p>Total spent</p>
-                        <b>₹{fmt(g.totalAmount || 0)}</b>
-                      </div>
-                      <div className="group-stat-item" style={{textAlign: 'right'}}>
-                        {(() => {
-                          const net = g.netOwe || 0;
-                          const settled = Math.abs(net) < 0.01;
-                          return (
-                            <>
-                              <p>{settled ? "Status" : net > 0 ? "You owe" : "You're owed"}</p>
-                              <b className={settled ? '' : net > 0 ? 'negative' : 'positive'}>
-                                {settled ? "Settled up ✓" : `₹${fmt(Math.abs(net))}`}
-                              </b>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {myGroups.length === 0 && (
-                  <div style={{ padding: '40px', textAlign: 'center', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1', gridColumn: '1 / -1' }}>
-                    <p style={{ color: '#64748b', marginBottom: '16px' }}>You aren't part of any groups yet.</p>
-                    <button className="btn-primary" onClick={() => setIsModalOpen(true)}>Create your first group</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'group-details' && groupId && (
-          <>
-            {(() => {
-              const currentGroup = myGroups.find(g => g.name === groupId);
-              const members = currentGroup?.members || [];
-              const totalAmount = currentGroup?.totalAmount || 0;
-              
-              // Compute balances locally (case-insensitive)
-              const balances = {};
-              const nameMap = {};
-              members.forEach(m => {
-                balances[m.toLowerCase()] = 0;
-                nameMap[m.toLowerCase()] = m;
-              });
-              expenses.forEach(e => {
-                const paidBy = e.paidBy.toLowerCase();
-                if (!nameMap[paidBy]) nameMap[paidBy] = e.paidBy;
-                balances[paidBy] = (balances[paidBy] || 0) + e.amount;
-                
-                e.splitAmong.forEach(s => {
-                  const splitName = s.name.toLowerCase();
-                  if (!nameMap[splitName]) nameMap[splitName] = s.name;
-                  balances[splitName] = (balances[splitName] || 0) - s.amount;
-                });
-              });
-
+            {myGroups.length === 0 && loaded && <p className="nav-empty">No groups yet</p>}
+            {myGroups.map((g) => {
+              const n = round2(g.netOwe || 0);
               return (
-                <div>
-                  <button className="btn-outline" style={{ marginBottom: '24px' }} onClick={() => setActiveTab('dashboard')}>
-                    ← Back
-                  </button>
-
-                  <div className="group-details-header">
-                    <div className="group-details-icon">{currentGroup?.emoji || '🌴'}</div>
-                    <div className="group-details-info">
-                      <h1>{groupId}</h1>
-                      <p>{members.length} members · ₹{totalAmount.toFixed(2)} total</p>
-                    </div>
-                  </div>
-
-                  <div className="two-col-layout">
-                    {/* BALANCES COLUMN */}
-                    <div className="balances-card">
-                      <div className="card-header-title">Balances</div>
-                      {Object.keys(balances).map(mKey => {
-                        const bal = balances[mKey] || 0;
-                        const m = nameMap[mKey];
-                        const isPositive = bal > 0.01;
-                        const isNegative = bal < -0.01;
-                        return (
-                          <div className="balance-row" key={mKey}>
-                            <span>{mKey === user?.name?.toLowerCase() ? "You" : m}</span>
-                            <span style={{ 
-                              color: isPositive ? '#10b981' : isNegative ? '#ef4444' : '#64748b' 
-                            }}>
-                              {isPositive ? '+' : isNegative ? '-' : ''}₹{Math.abs(bal).toFixed(2)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* SETTLE UP COLUMN */}
-                    <div className="settle-card">
-                      <div className="card-header-title">Settle Up</div>
-                      {settlements.length === 0 ? (
-                        <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>All settled up!</p>
-                      ) : (
-                        settlements.map((s, idx) => {
-                          const handleSettlePayment = async () => {
-                            if (window.confirm(`Mark ₹${s.amount.toFixed(2)} payment from ${s.from} to ${s.to} as settled?`)) {
-                              try {
-                                await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/expenses/add`, {
-                                  groupId: groupId,
-                                  title: "Settlement Payment",
-                                  amount: s.amount,
-                                  category: "General",
-                                  paidBy: s.from,
-                                  members: members,
-                                  splitBetween: [s.to]
-                                });
-                                fetchData();
-                              } catch (err) {
-                                console.error("Error marking as settled", err);
-                              }
-                            }
-                          };
-
-                          return (
-                            <div className="settle-row" key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                              <span>
-                                {s.from === user?.name ? "You" : s.from} 
-                                <span style={{ color: '#94a3b8', margin: '0 8px' }}>→</span> 
-                                {s.to === user?.name ? "You" : s.to}
-                              </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ color: '#10b981', fontWeight: '700' }}>₹{s.amount.toFixed(2)}</span>
-                                <button 
-                                  onClick={handleSettlePayment}
-                                  style={{ background: '#e2e8f0', color: '#475569', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '600' }}
-                                >
-                                  Mark Settled
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {/* EXPENSES SECTION */}
-                  <div className="expenses-header">
-                    <h2>Expenses</h2>
-                    <button className="btn-primary" onClick={() => setIsAddExpenseModalOpen(true)}>
-                      + Add expense
-                    </button>
-                  </div>
-
-                  <div className="expenses-list">
-                    {expenses.filter(e => e.title !== "Settlement Payment" || (e.splitAmong[0] && e.paidBy.toLowerCase() !== e.splitAmong[0].name.toLowerCase())).length === 0 ? (
-                      <p style={{ color: '#94a3b8', textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px', border: '1px dashed #e2e8f0' }}>No expenses yet</p>
-                    ) : (
-                      expenses
-                        .filter(e => e.title !== "Settlement Payment" || (e.splitAmong[0] && e.paidBy.toLowerCase() !== e.splitAmong[0].name.toLowerCase()))
-                        .map((e) => (
-                          e.title === "Settlement Payment" ? (
-                            <div key={e._id} className="expense-item" style={{ background: '#f8fafc' }}>
-                              <div className="expense-item-left">
-                                <div className="expense-cat-icon" style={{ background: '#e2e8f0' }}>✅</div>
-                                <div className="expense-item-info">
-                                  <h4>Payment</h4>
-                                  <p>{e.paidBy.toLowerCase() === user?.name?.toLowerCase() ? "You" : e.paidBy} paid {e.splitAmong[0]?.name.toLowerCase() === user?.name?.toLowerCase() ? "You" : e.splitAmong[0]?.name}</p>
-                                </div>
-                              </div>
-                              <div className="expense-item-amount" style={{ color: '#10b981' }}>₹{e.amount.toFixed(2)}</div>
-                            </div>
-                          ) : (
-                            <div key={e._id} className="expense-item">
-                              <div className="expense-item-left">
-                                <div className="expense-cat-icon">
-                                  {e.category === "Food" ? "🍔" : e.category === "Lodging" ? "🏠" : e.category === "Transport" ? "🚗" : "💸"}
-                                </div>
-                                <div className="expense-item-info">
-                                  <h4>{e.title}</h4>
-                                  <p>{e.paidBy.toLowerCase() === user?.name?.toLowerCase() ? "You" : e.paidBy} paid · split {e.splitAmong.length} ways</p>
-                                </div>
-                              </div>
-                              <div className="expense-item-amount">₹{e.amount.toFixed(2)}</div>
-                            </div>
-                          )
-                      ))
-                    )}
-                  </div>
-
-                  <AddExpenseModal 
-                    isOpen={isAddExpenseModalOpen} 
-                    onClose={() => setIsAddExpenseModalOpen(false)}
-                    user={user}
-                    groupId={groupId}
-                    members={members}
-                    onExpenseAdded={fetchData}
-                  />
-                </div>
+                <button
+                  key={g._id || g.name}
+                  className={`nav-item${groupId === g.name ? " active" : ""}`}
+                  onClick={() => openGroup(g.name)}
+                  title={n === 0 ? "Settled" : n > 0 ? `You owe ${inr(n)}` : `You're owed ${inr(n)}`}
+                >
+                  <Monogram name={g.name} />
+                  <span className="nav-label">{g.name}</span>
+                  {n !== 0 && (
+                    <span className={`nav-meta ${n > 0 ? "neg" : "pos"}`}>
+                      {n > 0 ? "−" : "+"}
+                      {inr(n)}
+                    </span>
+                  )}
+                </button>
               );
-            })()}
-          </>
-        )}
+            })}
+          </nav>
+        </div>
 
-      {/* 🤖 AI CHATBOT */}
-      <Chatbot groupId={groupId || (myGroups.length > 0 ? myGroups[0].name : "General")} />
+        <div className="sidebar-foot">
+          <div className="user-card">
+            <Monogram name={user.name} size="sm" round />
+            <div className="who">
+              <strong>{user.name}</strong>
+              <small>{user.email}</small>
+            </div>
+            <button className="icon-btn" onClick={handleLogout} aria-label="Log out" title="Log out">
+              <Icon name="logout" size={16} />
+            </button>
+          </div>
+        </div>
+      </aside>
+      <div className="nav-scrim" onClick={() => setNavOpen(false)} />
+
+      <div className="main">
+        <div className="mobile-bar">
+          <button onClick={goHome} aria-label="Splitly home">
+            <Logo size={26} />
+          </button>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button className="icon-btn" onClick={() => setIsPaletteOpen(true)} aria-label="Search">
+              <Icon name="search" />
+            </button>
+            <button className="icon-btn" onClick={() => setNavOpen(true)} aria-label="Open menu">
+              <Icon name="menu" />
+            </button>
+          </div>
+        </div>
+
+        <main className="page">
+          {groupId ? (
+            <GroupDetail
+              key={groupId}
+              user={user}
+              groupId={groupId}
+              group={currentGroup}
+              expenses={expenses}
+              settlements={settlements}
+              loading={groupLoading}
+              onBack={goHome}
+              onAddExpense={() => setExpenseModal({ open: true, expense: null })}
+              onEditExpense={(e) => setExpenseModal({ open: true, expense: e })}
+              onAsk={() => setIsChatOpen(true)}
+              onSettings={() => setIsSettingsOpen(true)}
+              onChanged={fetchData}
+            />
+          ) : (
+            <Dashboard
+              user={user}
+              groups={myGroups}
+              allExpenses={allExpenses}
+              loaded={loaded}
+              onOpenGroup={openGroup}
+              onNewGroup={() => setIsGroupModalOpen(true)}
+            />
+          )}
+        </main>
       </div>
 
-      <CreateGroupModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        user={user}
-        onGroupCreated={fetchData}
+      <Chatbot open={isChatOpen} onClose={() => setIsChatOpen(false)} groupId={chatGroup} />
+
+      <CommandPalette
+        open={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        groups={myGroups}
+        commands={commands}
+        onOpenGroup={openGroup}
       />
+
+      <CreateGroupModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        user={user}
+        onGroupCreated={async (name) => {
+          await fetchData();
+          if (name) openGroup(name);
+        }}
+      />
+
+      {groupId && (
+        <AddExpenseModal
+          isOpen={expenseModal.open}
+          expense={expenseModal.expense}
+          onClose={() => setExpenseModal({ open: false, expense: null })}
+          user={user}
+          groupId={groupId}
+          members={members}
+          onExpenseAdded={fetchData}
+        />
+      )}
+
+      {groupId && isSettingsOpen && currentGroup && (
+        <GroupSettingsModal
+          group={currentGroup}
+          user={user}
+          onClose={() => setIsSettingsOpen(false)}
+          onChanged={fetchData}
+          onDeleted={() => {
+            setIsSettingsOpen(false);
+            setGroupId(null);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppInner />
+    </ToastProvider>
+  );
+}
