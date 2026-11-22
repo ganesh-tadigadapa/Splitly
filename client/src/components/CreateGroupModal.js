@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { API, Icon, Modal, sameName } from "../ui";
+import { useToast } from "./Toasts";
 
 function CreateGroupModal({ isOpen, onClose, user, onGroupCreated }) {
+  const toast = useToast();
   const [name, setName] = useState("");
   const [others, setOthers] = useState([]);
   const [draft, setDraft] = useState("");
@@ -57,8 +59,9 @@ function CreateGroupModal({ isOpen, onClose, user, onGroupCreated }) {
         members: finalMembers,
         createdBy: user.name,
       });
-      onGroupCreated();
+      toast({ message: `Created ${name.trim()}` });
       onClose();
+      onGroupCreated(name.trim());
     } catch (err) {
       setError(err.response?.data?.msg || "Couldn't create the group. Try again.");
     } finally {

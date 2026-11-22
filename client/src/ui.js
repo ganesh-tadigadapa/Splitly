@@ -145,6 +145,52 @@ const P = {
   down: <path d="M17 7 7 17M17 17H7V7" />,
   scale: <path d="M12 3v18M5 21h14M3 7h18M6 7l-3 7a3 3 0 0 0 6 0zM18 7l-3 7a3 3 0 0 0 6 0z" />,
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </>
+  ),
+  edit: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />,
+  trash: <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" />,
+  more: (
+    <>
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </>
+  ),
+  download: <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />,
+  copy: (
+    <>
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </>
+  ),
+  chart: <path d="M3 3v18h18M7 16v-5M12 16V8M17 16v-9" />,
+  list: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+  whatsapp: <path d="M3 21l1.65-4.8A9 9 0 1 1 7.8 19.4zM9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8a4 4 0 0 1-1.8-1.8l.8-1-1-2L9 9.5z" />,
+  activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </>
+  ),
+  command: <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 0 0 0-6z" />,
+  userPlus: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <path d="M20 8v6M23 11h-6" />
+    </>
+  ),
 };
 
 /* ---------- logo ---------- */
@@ -227,3 +273,84 @@ export function Modal({ title, subtitle, onClose, children, footer }) {
     </div>
   );
 }
+
+/* ---------- categories: fixed colour per category (validated dark palette) ---------- */
+export const CATEGORY_COLORS = {
+  Food: "#3987e5",
+  Lodging: "#d95926",
+  Transport: "#199e70",
+  Activities: "#c98500",
+  Shopping: "#d55181",
+  General: "#0ca30c",
+};
+
+export const isSettlement = (e) => e.title === "Settlement Payment";
+export const expenseDate = (e) => e.date || e.createdAt;
+
+/* ---------- more dates ---------- */
+export function toInputDate(d = new Date()) {
+  const x = new Date(d);
+  const off = x.getTimezoneOffset();
+  return new Date(x.getTime() - off * 60000).toISOString().slice(0, 10);
+}
+
+export function dayKey(d) {
+  return toInputDate(d);
+}
+
+export function relativeDay(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const today = new Date();
+  const diff = Math.round(
+    (new Date(today.toDateString()) - new Date(d.toDateString())) / 86400000
+  );
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff > 1 && diff < 7) return `${diff} days ago`;
+  return shortDate(iso);
+}
+
+/* ---------- compact money for axes ---------- */
+export function inrCompact(n) {
+  const v = Math.abs(n);
+  if (v >= 100000) return "₹" + +(v / 100000).toFixed(1) + "L";
+  if (v >= 1000) return "₹" + +(v / 1000).toFixed(1) + "K";
+  return "₹" + Math.round(v);
+}
+
+/* ---------- file download ---------- */
+export function downloadFile(filename, text, type = "text/csv") {
+  const blob = new Blob([text], { type: `${type};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function csvCell(v) {
+  const s = v === undefined || v === null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/* ---------- small hooks ---------- */
+export function useOutsideClose(ref, open, onClose) {
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => ref.current && !ref.current.contains(e.target) && onClose();
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [ref, open, onClose]);
+}
+
+export const MOD =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl+";
