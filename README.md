@@ -1,6 +1,6 @@
 # Splitly
 
-Live: https://ai-split-66al.vercel.app/
+Live: https://splitly-pied.vercel.app · API: https://splitly-api-omega.vercel.app
 
 Splitting costs on a trip or in a shared flat usually ends with someone scrolling back through a group chat trying to work out who paid for what. And most splitting apps make you type every expense into a form, which is the part nobody wants to do.
 
